@@ -3,9 +3,9 @@
 """
 Raspberry Pi Zero W + Waveshare e-Paper 2.13'' (V2 250x122)
 Layout:
-  • ESQUERDA: Eventos + Tasks do dia atual (Google Calendar + Google Tasks)
-  • DIREITA (TOPO): Calendário do mês (grade correta, seg→dom)
-  • DIREITA (BASE): Hora 24h em destaque + data curta
+  À ESQUERDA: Eventos + Tasks do dia atual (Google Calendar + Google Tasks)
+  À DIREITA (TOPO): Calendário do mês (grade correta, seg à dom)
+  À DIREITA (BASE): Hora 24h em destaque + data curta
 
 Atualização:
  - Renderização completa inicial
@@ -37,7 +37,7 @@ MAX_EVENTS = 12  # busca mais para poder paginar
 FONT_REG = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
-# ================= Utilitários =================
+# ================= UtilitÃ¡rios =================
 
 def load_font(path: str, size: int):
     try:
@@ -103,7 +103,7 @@ def get_google_data(max_items=MAX_EVENTS):
     time_min = today.isoformat()
     time_max = tomorrow.isoformat()
 
-    # --- eventos de todos os calendários ---
+    # --- eventos de todos os Calendários ---
     events = []
     calendars = service_cal.calendarList().list().execute().get("items", [])
     for cal in calendars:
@@ -130,7 +130,7 @@ def get_google_data(max_items=MAX_EVENTS):
                 hora = sdt.strftime("%H:%M")
             else:
                 hora = "Dia todo"
-            title = ev.get("summary", "(Sem título)")
+            title = ev.get("summary", "(Sem tí­tulo)")
             loc = ev.get("location", "")
             events.append((hora, title, "Calendar", loc))
 
@@ -237,10 +237,10 @@ def draw_events(draw, ox, oy, w, h, items, page_index=0, total_pages=1):
         if text_size(draw, text, font=font)[0] <= maxw:
             return text
         for i in range(len(text)-1, 0, -1):
-            t = text[:i] + "…"
+            t = text[:i] + "â€¦"
             if text_size(draw, t, font=font)[0] <= maxw:
                 return t
-        return "…"
+        return "â€¦"
 
     for hora, title, origem, loc in items:
         line1 = f"{hora} {title}"
