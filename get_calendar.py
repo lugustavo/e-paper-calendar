@@ -28,13 +28,19 @@ def get_creds():
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
                 CREDENTIALS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
+            creds = flow.run_local_server(port=0, access_type='offline', prompt='consent')
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
     return creds
 
+def list_calendars(service_calendar):
+    print("=== Lista de Calendarios Disponiveis ===")
+    calendar_list = service_calendar.calendarList().list().execute()
+    for cal in calendar_list.get('items', []):
+        print(f"ID: {cal['id']} | Nome: {cal.get('summary')} | Timezone: {cal.get('timeZone')}")
+    print("=======================================")
 
-def get_formatted_events(service_calendar, max_results=5):
+def get_formatted_events(service_calendar, calendar_id='primary', max_results=5):
     """Retorna apenas eventos do dia atual no fuso horario local"""
     local_tz = get_localzone()
     now = datetime.datetime.now(local_tz)
@@ -42,7 +48,7 @@ def get_formatted_events(service_calendar, max_results=5):
     end_of_day = start_of_day + datetime.timedelta(days=1)
 
     events_result = service_calendar.events().list(
-        calendarId='primary',
+        calendarId=calendar_id,
         timeMin=start_of_day.isoformat(),
         timeMax=end_of_day.isoformat(),
         maxResults=max_results,
@@ -61,7 +67,6 @@ def get_formatted_events(service_calendar, max_results=5):
             start_str = "(Dia inteiro)"
         formatted.append(f"{start_str} - {event.get('summary', '(Sem titulo)')}")
     return formatted
-
 
 def get_formatted_tasks(service_tasks, max_lists=5):
     """Retorna tarefas formatadas do Google Tasks"""
@@ -89,13 +94,16 @@ def get_formatted_tasks(service_tasks, max_lists=5):
                 formatted.append(f"  {status} {title}")
     return formatted
 
-
 def main():
     creds = get_creds()
     service_calendar = build('calendar', 'v3', credentials=creds)
     service_tasks = build('tasks', 'v1', credentials=creds)
 
-    events = get_formatted_events(service_calendar)
+    # Lista todos os calendarios disponiveis
+    list_calendars(service_calendar)
+
+    # Exemplo usando o calendario 'primary'
+    events = get_formatted_events(service_calendar, calendar_id='primary')
     tasks = get_formatted_tasks(service_tasks)
 
     print("=== EVENTOS DE HOJE ===")
@@ -105,7 +113,6 @@ def main():
     print("\n=== TAREFAS ===")
     for t in tasks:
         print(t)
-
 
 if __name__ == '__main__':
     main()
