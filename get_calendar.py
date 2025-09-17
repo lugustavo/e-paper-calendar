@@ -34,7 +34,7 @@ def get_creds():
     return creds
 
 
-def get_formatted_events(service_calendar, max_results=20):
+def get_formatted_events(service_calendar, max_results=5):
     """Retorna apenas eventos do dia atual no fuso horario local"""
     local_tz = get_localzone()
     now = datetime.datetime.now(local_tz)
