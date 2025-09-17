@@ -34,64 +34,76 @@ def get_creds():
     return creds
 
 def list_calendars(service_calendar):
-    print("=== Lista de Calendarios Disponiveis ===")
     calendar_list = service_calendar.calendarList().list().execute()
-    for cal in calendar_list.get('items', []):
-        print(f"ID: {cal['id']} | Nome: {cal.get('summary')} | Timezone: {cal.get('timeZone')}")
-    print("=======================================")
+    return calendar_list.get('items', [])
 
-def get_formatted_events(service_calendar, calendar_id='primary', max_results=5):
-    """Retorna apenas eventos do dia atual no fuso horario local"""
+def get_formatted_events_all_calendars(service_calendar, max_results=5):
+    """Retorna eventos do dia atual de todos os calendarios"""
     local_tz = get_localzone()
     now = datetime.datetime.now(local_tz)
     start_of_day = datetime.datetime(now.year, now.month, now.day, 0, 0, 0, tzinfo=local_tz)
     end_of_day = start_of_day + datetime.timedelta(days=1)
 
-    events_result = service_calendar.events().list(
-        calendarId=calendar_id,
-        timeMin=start_of_day.isoformat(),
-        timeMax=end_of_day.isoformat(),
-        maxResults=max_results,
-        singleEvents=True,
-        orderBy='startTime').execute()
-    events = events_result.get('items', [])
+    all_events = []
+    calendars = list_calendars(service_calendar)
 
-    formatted = []
-    for event in events:
-        start = event['start'].get('dateTime', event['start'].get('date'))
-        try:
-            dt = datetime.datetime.fromisoformat(start.replace("Z", "+00:00"))
-            dt = dt.astimezone(local_tz)
-            start_str = dt.strftime("%H:%M")
-        except Exception:
-            start_str = "(Dia inteiro)"
-        formatted.append(f"{start_str} - {event.get('summary', '(Sem titulo)')}")
-    return formatted
+    for cal in calendars:
+        cal_id = cal['id']
+        cal_name = cal.get('summary', cal_id)
+        events_result = service_calendar.events().list(
+            calendarId=cal_id,
+            timeMin=start_of_day.isoformat(),
+            timeMax=end_of_day.isoformat(),
+            maxResults=max_results,
+            singleEvents=True,
+            orderBy='startTime').execute()
+        events = events_result.get('items', [])
+        for event in events:
+            start = event['start'].get('dateTime', event['start'].get('date'))
+            try:
+                dt = datetime.datetime.fromisoformat(start.replace("Z", "+00:00"))
+                dt = dt.astimezone(local_tz)
+                start_str = dt.strftime("%H:%M")
+            except Exception:
+                start_str = "(Dia inteiro)"
+            title = event.get('summary', '(Sem titulo)')
+            all_events.append(f"[{cal_name}] {start_str} - {title}")
+
+    return all_events
 
 def get_formatted_tasks(service_tasks, max_lists=5):
-    """Retorna tarefas formatadas do Google Tasks"""
+    """Retorna apenas tarefas com prazo para o dia atual (inclui hora se existir)"""
     local_tz = get_localzone()
+    today = datetime.datetime.now(local_tz).date()
     tasklists = service_tasks.tasklists().list(maxResults=max_lists).execute().get('items', [])
     formatted = []
     for tasklist in tasklists:
-        formatted.append(f"[{tasklist['title']}]")
         tasks = service_tasks.tasks().list(tasklist=tasklist['id']).execute().get('items', [])
-        if not tasks:
-            formatted.append("  (Nenhuma tarefa)")
+        todays_tasks = []
         for task in tasks:
-            status = "OK" if task.get('status') == "completed" else "X"
-            title = task.get('title', '(Sem titulo)')
             due = task.get('due')
             if due:
                 try:
-                    dt = datetime.datetime.fromisoformat(due.replace("Z", "+00:00"))
-                    dt = dt.astimezone(local_tz)
-                    due_str = dt.strftime("%d/%m")
-                    formatted.append(f"  {status} {title} (ate {due_str})")
+                    dt = datetime.datetime.fromisoformat(due.replace("Z", "+00:00")).astimezone(local_tz)
+                    if dt.date() != today:
+                        continue
+                    # inclui hora se não for 00:00
+                    if dt.hour == 0 and dt.minute == 0:
+                        due_str = dt.strftime("%d/%m")
+                    else:
+                        due_str = dt.strftime("%d/%m %H:%M")
                 except Exception:
-                    formatted.append(f"  {status} {title}")
+                    continue
             else:
-                formatted.append(f"  {status} {title}")
+                continue  # ignora tarefas sem prazo
+            status = "OK" if task.get('status') == "completed" else "X"
+            title = task.get('title', '(Sem titulo)')
+            todays_tasks.append(f"  {status} {title} (até {due_str})")
+        if todays_tasks:
+            formatted.append(f"[{tasklist['title']}]")
+            formatted.extend(todays_tasks)
+    if not formatted:
+        formatted.append("(Nenhuma tarefa para hoje)")
     return formatted
 
 def main():
@@ -99,18 +111,14 @@ def main():
     service_calendar = build('calendar', 'v3', credentials=creds)
     service_tasks = build('tasks', 'v1', credentials=creds)
 
-    # Lista todos os calendarios disponiveis
-    list_calendars(service_calendar)
-
-    # Exemplo usando o calendario 'primary'
-    events = get_formatted_events(service_calendar, calendar_id='primary')
+    events = get_formatted_events_all_calendars(service_calendar)
     tasks = get_formatted_tasks(service_tasks)
 
-    print("=== EVENTOS DE HOJE ===")
+    print("=== EVENTOS DE HOJE (TODOS CALENDARIOS) ===")
     for e in events:
         print(e)
 
-    print("\n=== TAREFAS ===")
+    print("\n=== TAREFAS DE HOJE ===")
     for t in tasks:
         print(t)
 
