@@ -24,15 +24,18 @@ from PIL import Image, ImageDraw, ImageFont
 picdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'e-Paper/RaspberryPi_JetsonNano/python/pic')
 libdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'e-Paper/RaspberryPi_JetsonNano/python/lib')
 
+if os.path.exists(libdir):
+    sys.path.append(libdir)
+
 # ================= Configurações =================
 EPD_WIDTH = 250
 EPD_HEIGHT = 122
-MARGIN = 6
-RIGHT_PANEL_W = 145  # Calendário + Hora
+MARGIN = 3
+RIGHT_PANEL_W = 144  # Calendário + Hora
 LEFT_PANEL_W = EPD_WIDTH - RIGHT_PANEL_W
-TIME_BLOCK_H = 28
+TIME_BLOCK_H = 19
 LINE_SPACING = 2
-MAX_EVENTS = 12  # busca mais para poder paginar
+MAX_EVENTS = 24  # busca mais para poder paginar
 
 FONT_REG = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
@@ -205,42 +208,38 @@ def draw_month_calendar(draw, ox, oy, w, h, now):
         y += cell_h
 
 def draw_time_block(draw, ox, oy, w, now):
-    time_font = load_font(FONT_BOLD, 22)
-    date_font = load_font(FONT_REG, 12)
+    time_font = load_font(FONT_BOLD, 11)
     time_txt = now.strftime("%H:%M")
-    date_txt = now.strftime("%a, %d/%m")
-
     draw.rectangle([ox, oy, ox + w, oy + TIME_BLOCK_H], fill=0)
     tw, _ = text_size(draw, time_txt, font=time_font)
     draw.text((ox + (w - tw)//2, oy + 2), time_txt, font=time_font, fill=255)
 
-    dy = oy + TIME_BLOCK_H + 2
-    dw, _ = text_size(draw, date_txt, font=date_font)
-    draw.text((ox + (w - dw)//2, dy), date_txt, font=date_font, fill=0)
 
 def draw_events(draw, ox, oy, w, h, items, page_index=0, total_pages=1):
-    title_font = load_font(FONT_BOLD, 14)
-    item_font = load_font(FONT_REG, 12)
-    small_font = load_font(FONT_REG, 11)
+    title_font = load_font(FONT_BOLD, 11)
+    item_font = load_font(FONT_REG, 9)
+    small_font = load_font(FONT_REG, 9)
 
-    if not items:
-        titulo = "Hoje (vazio)"
-    elif total_pages > 1:
-        titulo = f"Hoje ({page_index+1}/{total_pages})"
-    else:
-        titulo = "Hoje"
+    titulo = "Eventos (vazio)" if not items else (f"Eventos ({page_index+1}/{total_pages})" if total_pages > 1 else "Eventos")
+    draw.rectangle([ox, oy, ox + w, oy + TIME_BLOCK_H], fill=0)
+    tw, _ = text_size(draw, titulo, title_font)
+    draw.text((ox + (w - tw)//2, oy + 2), titulo, font=title_font, fill=255)
 
-    draw.text((ox, oy), titulo, font=title_font, fill=0)
-    y = oy + title_font.size + 2
+    y = oy + title_font.size + 12
 
-    def trunc(text, maxw, font):
-        if text_size(draw, text, font=font)[0] <= maxw:
+    def trunc(text: str, maxw: int, font: ImageFont.FreeTypeFont) -> str:
+        if text_size(draw, text, font)[0] <= maxw:
             return text
-        for i in range(len(text)-1, 0, -1):
-            t = text[:i] + "â€¦"
-            if text_size(draw, t, font=font)[0] <= maxw:
-                return t
-        return "â€¦"
+        low, high = 0, len(text)
+        while low < high:
+            mid = (low + high) // 2
+            cand = text[:mid] + "..."
+            if text_size(draw, cand, font)[0] <= maxw:
+                low = mid + 1
+            else:
+                high = mid
+        best = text[:max(low - 1, 0)] + ("..." if len(text) > 1 else "")
+        return best or "..."
 
     for hora, title, origem, loc in items:
         line1 = f"{hora} {title}"
@@ -296,26 +295,25 @@ def render_dynamic(base_img, page_index=0, page_size=3):
 
     right_x, right_y = LEFT_PANEL_W + 1, MARGIN
     right_w, right_h = RIGHT_PANEL_W - MARGIN, EPD_HEIGHT - MARGIN*2
-    cal_h = right_h - TIME_BLOCK_H - 22
-    draw_time_block(draw, right_x+2, right_y + cal_h + 6, right_w-6, now)
+    cal_h = right_h - TIME_BLOCK_H - 8
+    draw_time_block(draw, right_x+2, right_y + cal_h + 6, right_w-7, now)
 
     left_x, left_y = MARGIN, MARGIN
     left_w, left_h = LEFT_PANEL_W - MARGIN*2, EPD_HEIGHT - MARGIN*2
     draw.rectangle([left_x+1, left_y+1, left_x+left_w-1, left_y+left_h-1], fill=255)
-    draw_events(draw, left_x+2, left_y+2, left_w-6, left_h-4, show_items,
+    draw_events(draw, left_x+2, left_y+2, left_w-4, left_h-6, show_items,
                 page_index=page_index, total_pages=total_pages)
 
     return img
 
 def display_on_epaper(img, full=True):
-    if os.path.exists(libdir):
-        sys.path.append(libdir)
-        from waveshare_epd import epd2in13_V2
+    from waveshare_epd import epd2in13_V2
     epd = epd2in13_V2.EPD()
     if full:
         epd.init(epd.FULL_UPDATE)
         epd.Clear(0xFF)
     else:
+        epd.displayPartBaseImage(epd.getbuffer(img))
         epd.init(epd.PART_UPDATE)
     epd.display(epd.getbuffer(img))
     epd.sleep()
