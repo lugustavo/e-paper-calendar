@@ -40,6 +40,73 @@ from PIL import Image, ImageDraw, ImageFont
 import socket
 import getpass
 
+# ===== Logging (retenção 7 dias + compressão .gz) =====
+import logging
+from logging.handlers import TimedRotatingFileHandler
+import time as _time
+
+def _setup_logging():
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        log_dir = os.path.join(base_dir, "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "epaper.log")
+
+        # Gira à meia-noite. backupCount mantido por compat, mas a limpeza principal é por idade (7 dias) abaixo.
+        file_handler = TimedRotatingFileHandler(
+            log_file, when="midnight", backupCount=7, encoding="utf-8"
+        )
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+
+        # Rotaciona comprimindo para .gz e limpa arquivos .gz com mais de 7 dias
+        def _gzip_rotator(source, dest):
+            try:
+                import gzip, shutil
+                with open(source, "rb") as f_in, gzip.open(dest + ".gz", "wb") as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                try:
+                    os.remove(source)
+                except Exception:
+                    pass
+                # Limpeza por idade (7 dias) dos .gz
+                cutoff = _time.time() - 7 * 24 * 3600
+                try:
+                    for fn in os.listdir(log_dir):
+                        if not fn.endswith(".gz"):
+                            continue
+                        fp = os.path.join(log_dir, fn)
+                        try:
+                            if os.path.getmtime(fp) < cutoff:
+                                os.remove(fp)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+            except Exception:
+                # Se algo der errado, pelo menos tenta renomear sem comprimir
+                try:
+                    os.replace(source, dest)
+                except Exception:
+                    pass
+
+        file_handler.rotator = _gzip_rotator
+        # Observação: não definimos 'namer' para manter a política de limpeza acima por mtime
+
+        stream_handler = logging.StreamHandler(sys.stdout)
+        stream_handler.setLevel(logging.INFO)
+        stream_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+
+        logging.basicConfig(level=logging.INFO, handlers=[stream_handler, file_handler])
+        logging.getLogger(__name__).info("Logging iniciado (retenção 7 dias com compressão)")
+    except Exception as e:
+        # Fallback mínimo para não quebrar execução
+        logging.basicConfig(level=logging.INFO)
+        logging.getLogger(__name__).warning(f"Falha ao inicializar logging avançado: {e}")
+
+_setup_logging()
+logger = logging.getLogger(__name__)
+
 picdir = "/home/pi/e-Paper/RaspberryPi_JetsonNano/python/pic"
 libdir = "/home/pi/e-Paper/RaspberryPi_JetsonNano/python/lib"
 
@@ -65,6 +132,7 @@ HEADLESS_OAUTH_PORT = 54545
 # Caminhos fixos
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CREDENTIALS_FILE = os.path.join(BASE_DIR, "credentials.json")
+TOKEN_path_comment_preserver = ""  # (no-op) placeholder to avoid altering comments above
 TOKEN_PATH = os.path.join(BASE_DIR, "token.json")
 
 # Escopos fixos
@@ -81,15 +149,18 @@ _CREDS = None
 def load_font(path: str, size: int):
     try:
         return ImageFont.truetype(path, size)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Falha ao carregar fonte {path}, usando default. Erro: {e}")
         return ImageFont.load_default()
 
 
 def local_tz():
     try:
         from tzlocal import get_localzone
-        return get_localzone()
-    except Exception:
+        tz = get_localzone()
+        return tz
+    except Exception as e:
+        logger.error(f"Erro ao obter timezone local: {e}")
         return datetime.now().astimezone().tzinfo or timezone.utc
 
 
@@ -103,9 +174,11 @@ def set_portuguese_locale():
     for loc in ("pt_PT.utf8", "pt_BR.utf8", "pt_PT", "pt_BR", "pt"):
         try:
             locale.setlocale(locale.LC_TIME, loc)
+            logger.info(f"Locale definido: {loc}")
             return
         except Exception:
             pass
+    logger.warning("Não foi possível definir locale para PT")
 
 
 def has_gui_env() -> bool:
@@ -127,8 +200,9 @@ def _save_token(creds):
     try:
         with open(TOKEN_PATH, "w") as f:
             f.write(creds.to_json())
-    except Exception:
-        pass
+        logger.info("Token salvo/atualizado com sucesso")
+    except Exception as e:
+        logger.error(f"Erro ao salvar token: {e}")
 
 
 def get_credentials():
@@ -150,7 +224,9 @@ def get_credentials():
     if os.path.exists(TOKEN_PATH):
         try:
             creds = Credentials.from_authorized_user_file(TOKEN_PATH, SCOPES)
-        except Exception:
+            logger.info("Token carregado do disco")
+        except Exception as e:
+            logger.error(f"Falha ao carregar token local: {e}")
             creds = None
 
     # 3) Se inválido/expirado, tenta refresh silencioso
@@ -159,9 +235,11 @@ def get_credentials():
             creds.refresh(Request())
             _save_token(creds)  # salva o token renovado
             _CREDS = creds
+            logger.info("Token renovado via refresh")
             return _CREDS
-        except Exception:
-            pass  # cairá para re-autenticar
+        except Exception as e:
+            logger.error(f"Falha ao renovar token (refresh): {e}")
+            # cairá para re-autenticar
 
     # 4) Precisa autenticar no navegador (primeira vez ou sem refresh_token)
     if not os.path.exists(CREDENTIALS_FILE):
@@ -177,6 +255,7 @@ def get_credentials():
     )
 
     if has_gui_env():
+        logger.info("Iniciando OAuth (GUI)")
         creds = flow.run_local_server(
             port=0,
             open_browser=True,
@@ -189,11 +268,13 @@ def get_credentials():
             **auth_kwargs,
         )
     else:
+        logger.info("Iniciando OAuth (HEADLESS)")
         host = socket.gethostname()
         user = getpass.getuser() or "pi"
         ssh_hint = (
             f"ssh -N -L {HEADLESS_OAUTH_PORT}:localhost:{HEADLESS_OAUTH_PORT} {user}@{host}"
         )
+        logger.info(f"Sugestão de túnel SSH: {ssh_hint}")
         creds = flow.run_local_server(
             host="localhost",
             port=HEADLESS_OAUTH_PORT,
@@ -236,23 +317,31 @@ def get_google_data(max_items=MAX_EVENTS):
 
     # --- eventos de todos os Calendários ---
     events = []
-    calendars = service_cal.calendarList().list().execute().get("items", [])
+    try:
+        calendars = service_cal.calendarList().list().execute().get("items", [])
+    except Exception as e:
+        logger.error(f"Erro ao listar calendários: {e}")
+        calendars = []
     for cal in calendars:
         cal_id = cal.get("id")
         if not cal_id:
             continue
-        evs = (
-            service_cal.events()
-            .list(
-                calendarId=cal_id,
-                timeMin=time_min,
-                timeMax=time_max,
-                singleEvents=True,
-                orderBy="startTime",
+        try:
+            evs = (
+                service_cal.events()
+                .list(
+                    calendarId=cal_id,
+                    timeMin=time_min,
+                    timeMax=time_max,
+                    singleEvents=True,
+                    orderBy="startTime",
+                )
+                .execute()
+                .get("items", [])
             )
-            .execute()
-            .get("items", [])
-        )
+        except Exception as e:
+            logger.warning(f"Falha ao buscar eventos do calendário {cal_id}: {e}")
+            evs = []
         for ev in evs:
             start = ev.get("start", {})
             raw = start.get("dateTime") or start.get("date")
@@ -270,14 +359,22 @@ def get_google_data(max_items=MAX_EVENTS):
 
     # --- tasks do dia ---
     tasks = []
-    tlist = service_tasks.tasklists().list(maxResults=10).execute().get("items", [])
+    try:
+        tlist = service_tasks.tasklists().list(maxResults=10).execute().get("items", [])
+    except Exception as e:
+        logger.error(f"Erro ao listar tasklists: {e}")
+        tlist = []
     for tl in tlist:
-        ts = (
-            service_tasks.tasks()
-            .list(tasklist=tl["id"], showCompleted=False)
-            .execute()
-            .get("items", [])
-        )
+        try:
+            ts = (
+                service_tasks.tasks()
+                .list(tasklist=tl["id"], showCompleted=False)
+                .execute()
+                .get("items", [])
+            )
+        except Exception as e:
+            logger.warning(f"Falha ao buscar tasks da lista {tl.get('title','?')}: {e}")
+            ts = []
         for t in ts:
             due = t.get("due")
             if due:
@@ -293,6 +390,7 @@ def get_google_data(max_items=MAX_EVENTS):
         return "00:00" if h == "Dia todo" else h
 
     all_items.sort(key=sortkey)
+    logger.info(f"Itens carregados: eventos={len(events)}, tasks={len(tasks)}, total={len(all_items)}")
     return all_items[:max_items]
 
 
@@ -402,6 +500,7 @@ def draw_events(draw, ox, oy, w, h, items, page_index=0, total_pages=1):
 # ================= Pipeline =================
 
 def render_static():
+    _t0 = _time.perf_counter()
     tz = local_tz()
     now = datetime.now(tz)
     img = Image.new("1", (EPD_WIDTH, EPD_HEIGHT), 255)
@@ -418,10 +517,12 @@ def render_static():
     cal_h = right_h - TIME_BLOCK_H - 22
     draw_month_calendar(draw, right_x+2, right_y+2, right_w-6, cal_h, now)
 
+    logger.info(f"Render estática concluída em {(_time.perf_counter()-_t0)*1000:.0f} ms")
     return img
 
 
 def render_dynamic(base_img, page_index=0, page_size=3):
+    _t0 = _time.perf_counter()
     tz = local_tz()
     now = datetime.now(tz)
     items = get_google_data(MAX_EVENTS)
@@ -449,6 +550,9 @@ def render_dynamic(base_img, page_index=0, page_size=3):
     draw_events(draw, left_x+2, left_y+2, left_w-4, left_h-6, show_items,
                 page_index=page_index, total_pages=total_pages)
 
+    logger.info(
+        f"Render dinâmica p={page_index+1}/{total_pages} itens_mostrados={len(show_items)} em {(_time.perf_counter()-_t0)*1000:.0f} ms"
+    )
     return img
 
 
@@ -459,10 +563,12 @@ def display_on_epaper(img, full=True):
         epd.init(epd.FULL_UPDATE)
         epd.Clear(0xFF)
         epd.display(epd.getbuffer(img))
+        logger.info("Display: FULL update")
     else:
         epd.displayPartBaseImage(epd.getbuffer(img))
         epd.init(epd.PART_UPDATE)
         epd.displayPartial(epd.getbuffer(img))
+        logger.info("Display: PARTIAL update")
     #epd.sleep()
 
 
@@ -476,18 +582,30 @@ def main():
 
     if args.dry_run:
         img.save(args.dry_run)
-        print("PNG salvo em", args.dry_run)
+        logger.info(f"PNG salvo em {args.dry_run}")
     else:
         display_on_epaper(base_img, full=True)
         page_index = 0
         while True:
-            img = render_dynamic(base_img, page_index)
-            display_on_epaper(img, full=False)
-            img.save('out-test.png')
-            print(f"Atualizado parcial (hora + eventos página {page_index})")
-            page_index += 1
-            import time
-            time.sleep(60)
+            try:
+                img = render_dynamic(base_img, page_index)
+                display_on_epaper(img, full=False)
+                img.save('out-test.png')
+                logger.info(f"Atualização parcial OK (página {page_index})")
+                page_index += 1
+                import time
+                time.sleep(60)
+            except KeyboardInterrupt:
+                logger.info("Encerrado pelo usuário (Ctrl+C)")
+                break
+            except Exception as e:
+                logger.exception(f"Erro no loop de atualização: {e}")
+                import time
+                time.sleep(60)
+            finally:
+                logging.info("Putting display to sleep.")
+                epd.sleep()
+                epd2in13_V2.epdconfig.module_exit()
 
 
 if __name__ == "__main__":
