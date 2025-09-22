@@ -508,9 +508,15 @@ def draw_events(draw, ox, oy, w, h, items, page_index=0, total_pages=1):
         return best or "..."
 
     if not items:
-        msg = "Dia livre \U0001f600"
+        msg = "Dia livre"
         mw, mh = draw.textsize(msg, item_font)
-        draw.text(((ox + (w - mw)//2), y + 10), msg, font=load_font(FONT_REG, 12), fill=0)
+        draw.text(((ox + (w - mw)//2) - 18, y + 10), msg, font=load_font(FONT_REG, 17), fill=0)
+
+        msg = "\U0001f600"
+        mw, mh = draw.textsize(msg, item_font)
+        print(ox, oy, w, h)
+        print(mw, mh)
+        draw.text(((ox + (w - mw)//2) - 10, y + 35), msg, font=load_font(FONT_REG, 35), fill=0)
         return
 
     for hora, title, origem, loc in items:
