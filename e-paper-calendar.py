@@ -131,7 +131,7 @@ HEADLESS_OAUTH_PORT = 54545
 
 # Caminhos fixos
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CREDENTIALS_FILE = os.path.join(BASE_DIR, "credentials.json")
+CREDENTIALS_FILE = os.path.join(BASE_DIR, "credentials_raspberry-pi.json")
 TOKEN_path_comment_preserver = ""  # (no-op) placeholder to avoid altering comments above
 TOKEN_PATH = os.path.join(BASE_DIR, "token.json")
 
@@ -207,16 +207,20 @@ def _save_token(creds):
 
 def get_credentials():
     """Obtém credenciais, renova se expirado e **não** reabre browser sem necessidade.
-    Garante `refresh_token` na primeira autorização (offline + consent).
+    Garante `refresh_token` apenas na primeira autorização (offline + consent).
+    Enquanto aguarda autenticação do usuário, exibe aviso no e-ink display.
     """
     global _CREDS
 
     from google_auth_oauthlib.flow import InstalledAppFlow
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
+    from waveshare_epd import epd2in13_V2
+    from PIL import Image, ImageDraw, ImageFont
 
     # 1) Cache de processo
     if _CREDS and _CREDS.valid:
+        logger.info("Credenciais já válidas em cache, sem necessidade de OAuth")
         return _CREDS
 
     # 2) Carrega do disco se existir
@@ -229,46 +233,80 @@ def get_credentials():
             logger.error(f"Falha ao carregar token local: {e}")
             creds = None
 
-    # 3) Se inválido/expirado, tenta refresh silencioso
-    if creds and not creds.valid and creds.refresh_token:
+    # 3) Se ainda temos credenciais válidas
+    if creds and creds.valid:
+        logger.info("Credenciais do token.json ainda válidas, sem necessidade de OAuth")
+        _CREDS = creds
+        return _CREDS
+
+    # 4) Se expirado mas possui refresh_token, tenta refresh silencioso
+    if creds and creds.refresh_token:
         try:
             creds.refresh(Request())
             _save_token(creds)  # salva o token renovado
             _CREDS = creds
-            logger.info("Token renovado via refresh")
+            logger.info("Token renovado via refresh, sem necessidade de OAuth")
             return _CREDS
         except Exception as e:
             logger.error(f"Falha ao renovar token (refresh): {e}")
-            # cairá para re-autenticar
+            creds = None  # força reautenticação
 
-    # 4) Precisa autenticar no navegador (primeira vez ou sem refresh_token)
+    # 5) Se chegou aqui → realmente precisa autenticar no navegador
     if not os.path.exists(CREDENTIALS_FILE):
         raise FileNotFoundError(f"Credenciais não encontradas: {CREDENTIALS_FILE}")
 
     flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
 
-    # Parâmetros para garantir refresh_token na 1ª vez
+    # parâmetros padrão (não forçam consentimento sempre)
     auth_kwargs = dict(
         access_type='offline',
         include_granted_scopes='true',
-        prompt='consent',
     )
 
+    # primeira vez → força consentimento
+    if not os.path.exists(TOKEN_PATH):
+        auth_kwargs["prompt"] = "consent"
+
+    # === Mostrar mensagem no e-ink display enquanto aguarda login ===
+    try:
+        epd = epd2in13_V2.EPD()
+        epd.init(epd.FULL_UPDATE)
+        epd.Clear(0xFF)
+        img = Image.new("1", (EPD_WIDTH, EPD_HEIGHT), 255)
+        draw = ImageDraw.Draw(img)
+
+        # Título estilizado
+        font_title = load_font(FONT_BOLD, 14)
+        font_msg = load_font(FONT_REG, 11)
+
+        title = "● Google Login ●"
+        w, h = draw.textsize(title, font=font_title)
+        draw.text(((EPD_WIDTH - w)//2, 15), title, font=font_title, fill=0)
+
+        msg = "Autenticação necessária\nSiga o link exibido no log"
+        mw, mh = draw.multiline_textsize(msg, font=font_msg)
+        draw.multiline_text(((EPD_WIDTH - mw)//2, 50), msg, font=font_msg, fill=0, align="center")
+
+        # Pequeno "G" estilizado (substitui logo Google)
+        g_font = load_font(FONT_BOLD, 36)
+        gw, gh = draw.textsize("G", g_font)
+        draw.text(((EPD_WIDTH - gw)//2, EPD_HEIGHT - gh - 15), "G", font=g_font, fill=0)
+
+        epd.display(epd.getbuffer(img))
+        logger.info("Mensagem exibida no display: aguardando autenticação Google")
+    except Exception as e:
+        logger.warning(f"Não foi possível exibir mensagem no e-ink: {e}")
+
+    # dispara fluxo OAuth apenas se realmente não há token utilizável
     if has_gui_env():
-        logger.info("Iniciando OAuth (GUI)")
+        logger.info("Iniciando OAuth (GUI) - será exibida URL para login")
         creds = flow.run_local_server(
             port=0,
             open_browser=True,
-            authorization_prompt_message=(
-                "\nAbra o link no navegador para autorizar o acesso (GUI detectada):\n{url}\n"
-            ),
-            success_message=(
-                "Autorizado com sucesso! Você pode fechar esta aba."
-            ),
             **auth_kwargs,
         )
     else:
-        logger.info("Iniciando OAuth (HEADLESS)")
+        logger.info("Iniciando OAuth (HEADLESS) - será exibida URL para login")
         host = socket.gethostname()
         user = getpass.getuser() or "pi"
         ssh_hint = (
@@ -279,19 +317,6 @@ def get_credentials():
             host="localhost",
             port=HEADLESS_OAUTH_PORT,
             open_browser=False,
-            authorization_prompt_message=(
-                "\n=== Autorização Google (modo HEADLESS) ===\n"
-                "1) No SEU PC, abra um terminal e crie o túnel SSH para o Raspberry:\n"
-                f"   {ssh_hint}\n"
-                "   (Se o hostname não resolver, troque pelo IP do Raspberry)\n\n"
-                "2) Com o túnel ativo, abra no navegador do SEU PC o link abaixo e conclua o login:\n"
-                "   {url}\n\n"
-                f"O Google irá redirecionar para http://localhost:{HEADLESS_OAUTH_PORT}/,\n"
-                "que será encaminhado ao Raspberry pelo túnel.\n"
-            ),
-            success_message=(
-                "Autorizado! Você já pode fechar a aba do navegador."
-            ),
             **auth_kwargs,
         )
 
@@ -456,7 +481,7 @@ def draw_events(draw, ox, oy, w, h, items, page_index=0, total_pages=1):
     small_font = load_font(FONT_REG, 9)
 
     if not items:
-        titulo = "Eventos (vazio)"
+        titulo = "Sem Eventos"
     elif total_pages > 1:
         titulo = f"Eventos ({page_index+1}/{total_pages})"
     else:
@@ -481,6 +506,12 @@ def draw_events(draw, ox, oy, w, h, items, page_index=0, total_pages=1):
                 high = mid
         best = text[:max(low - 1, 0)] + ("..." if len(text) > 1 else "")
         return best or "..."
+
+    if not items:
+        msg = "Dia livre \U0001f600"
+        mw, mh = draw.textsize(msg, item_font)
+        draw.text(((ox + (w - mw)//2), y + 10), msg, font=load_font(FONT_REG, 12), fill=0)
+        return
 
     for hora, title, origem, loc in items:
         line1 = f"{hora} {title}"
@@ -606,7 +637,7 @@ def main():
 
                 img = render_dynamic(base_img, page_index)
                 display_on_epaper(img, full=False)
-                img.save('out-test.png')
+                #img.save('out-test.png')
                 logger.info(f"Atualização parcial OK (página {page_index})")
                 page_index += 1
                 import time
