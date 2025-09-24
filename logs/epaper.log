@@ -1,0 +1,5 @@
+2025-09-24 18:02:40,705 [INFO] Logging iniciado (retenção 7 dias com compressão)
+2025-09-24 18:02:40,850 [INFO] Locale definido: pt_PT.utf8
+2025-09-24 18:02:40,870 [WARNING] Falha ao carregar fonte /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf, usando default. Erro: cannot open resource
+2025-09-24 18:02:40,874 [WARNING] Falha ao carregar fonte /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf, usando default. Erro: cannot open resource
+2025-09-24 18:02:40,875 [WARNING] Falha ao carregar fonte /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf, usando default. Erro: cannot open resource
