@@ -60,8 +60,8 @@ sudo pip3 install ./
 
 ```bash
 # Clonar/copiar arquivos do projeto
-mkdir -p /home/pi/epaper-calendar
-cd /home/pi/epaper-calendar
+mkdir -p /home/pi/e-paper-calendar
+cd /home/pi/e-paper-calendar
 
 # Criar ambiente virtual
 python3 -m venv venv
@@ -136,7 +136,7 @@ python3 main.py
 
 ### Systemd Service
 
-Crie `/etc/systemd/system/epaper-calendar.service`:
+Crie `/etc/systemd/system/e-paper-calendar.service`:
 
 ```ini
 [Unit]
@@ -146,9 +146,9 @@ After=network.target
 [Service]
 Type=simple
 User=pi
-WorkingDirectory=/home/pi/epaper-calendar
-Environment=PATH=/home/pi/epaper-calendar/venv/bin
-ExecStart=/home/pi/epaper-calendar/venv/bin/python main.py
+WorkingDirectory=/home/pi/e-paper-calendar
+Environment=PATH=/home/pi/e-paper-calendar/venv/bin
+ExecStart=/home/pi/e-paper-calendar/venv/bin/python main.py
 Restart=always
 RestartSec=30
 
@@ -158,14 +158,14 @@ WantedBy=multi-user.target
 
 ```bash
 # Habilitar e iniciar serviço
-sudo systemctl enable epaper-calendar
-sudo systemctl start epaper-calendar
+sudo systemctl enable e-paper-calendar
+sudo systemctl start e-paper-calendar
 
 # Verificar status
-sudo systemctl status epaper-calendar
+sudo systemctl status e-paper-calendar
 
 # Ver logs
-journalctl -u epaper-calendar -f
+journalctl -u e-paper-calendar -f
 ```
 
 ## Personalização
