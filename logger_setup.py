@@ -84,8 +84,7 @@ def setup_logging(config=None) -> logging.Logger:
         # Configure root logger
         logging.basicConfig(
             level=log_level,
-            handlers=[console_handler, file_handler],
-            force=True  # Override any existing configuration
+            handlers=[console_handler, file_handler]
         )
 
         logger = logging.getLogger(__name__)
