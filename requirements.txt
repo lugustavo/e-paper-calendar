@@ -1,0 +1,20 @@
+# Google API dependencies
+google-auth==2.40.3
+google-auth-oauthlib==1.2.2
+google-auth-httplib2==0.2.0
+google-api-python-client==2.108.0
+google-api-core==2.25.1
+googleapis-common-protos==1.70.0
+
+# Image processing
+Pillow==5.4.1
+
+# Configuration management
+python-dotenv==0.21.1
+
+# Timezone handling
+tzlocal==5.1
+
+# Waveshare e-paper display library
+# Note: This should be installed separately following Waveshare's instructions
+# https://github.com/waveshare/e-Paper/tree/master/RaspberryPi_JetsonNano/python
