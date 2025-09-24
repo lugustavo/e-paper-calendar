@@ -131,9 +131,9 @@ HEADLESS_OAUTH_PORT = 54545
 
 # Caminhos fixos
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CREDENTIALS_FILE = os.path.join(BASE_DIR, "credentials_raspberry-pi.json")
+CREDENTIALS_FILE = os.path.join(BASE_DIR, "/home/pi/credentials_raspberry-pi.json")
 TOKEN_path_comment_preserver = ""  # (no-op) placeholder to avoid altering comments above
-TOKEN_PATH = os.path.join(BASE_DIR, "token.json")
+TOKEN_PATH = os.path.join(BASE_DIR, "/home/pi/token.json")
 
 # Escopos fixos
 SCOPES = [
