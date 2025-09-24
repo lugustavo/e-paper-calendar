@@ -2,6 +2,8 @@
 
 Sistema de exibição de calendário e tarefas do Google em display e-paper Waveshare 2.13" para Raspberry Pi.
 
+<img width="250" height="122" alt="out" src="https://github.com/user-attachments/assets/20d3dba2-1164-4416-9584-f250cbf08806" />
+
 ## Características
 
 - **Display e-paper**: Waveshare 2.13" V2 (250x122 pixels)
