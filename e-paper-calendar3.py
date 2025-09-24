@@ -155,6 +155,28 @@ _CREDS = None
 
 # ================= Utilitários =================
 
+def get_placeholder_ascii(prompt: str = "crie uma arte pixel de emoji, num frame de 96 pixels de largura e 110 pixels de altura") -> str:
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-4.1-nano",
+            messages=[
+                {"role": "system", "content": "Você é um gerador de arte pixel para display e-ink. Sua saída deve ser apenas a arte, sem explicações, sem introdução, sem formatação markdown."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=800
+        )
+        content = response.choices[0].message.content.strip()
+
+        # Remove possíveis blocos markdown ```...```
+        if content.startswith("```"):
+            content = "\n".join(line for line in content.splitlines() if not line.startswith("```"))
+
+        return content
+    except Exception as e:
+        print(f"Erro ao gerar arte ASCII: {e}")
+        return None
+    
+
 # Função para buscar imagem no ChatGPT (DALL·E API)
 def get_placeholder_image(prompt: str, size: str = "1024x1024") -> Image.Image:
     
@@ -551,14 +573,25 @@ def draw_events(draw, ox, oy, w, h, items, page_index=0, total_pages=1):
         return best or "..."
 
     if not items:
-        # Tentativa de gerar imagem motivacional
-        placeholder = get_placeholder_image("ilustração minimalista motivacional em preto e branco, simples")
-        if placeholder:
-            # Redimensiona para o espaço do painel e desenha
-            placeholder.save('gpt-image.png')
-            ph_resized = placeholder.resize((w+1, h - TIME_BLOCK_H)).convert("1")
-            draw.bitmap((ox, oy + TIME_BLOCK_H), ph_resized, fill=0)
-            return
+        ## Tentativa de gerar imagem motivacional
+        #placeholder = get_placeholder_image("ilustração minimalista motivacional em preto e branco, simples")
+        #if placeholder:
+        #    # Redimensiona para o espaço do painel e desenha
+        #    placeholder.save('gpt-image.png')
+        #    ph_resized = placeholder.resize((w+1, h - TIME_BLOCK_H)).convert("1")
+        #    draw.bitmap((ox, oy + TIME_BLOCK_H), ph_resized, fill=0)
+        #    return
+        
+        # Tenta gerar arte ASCII motivacional
+        ascii_art = get_placeholder_ascii()
+        if ascii_art:
+            # desenha linha a linha dentro da área disponível
+            lines = ascii_art.splitlines()
+            font = load_font(FONT_REG, 9)
+            max_lines = (h // font.size) - 2
+            for i, line in enumerate(lines[:max_lines]):
+                draw.text((ox + 2, y + i * font.size), line[:96], font=font, fill=0)
+            return        
         else:
             # Fallback antigo: texto e emoji
             msg = "Dia livre"
