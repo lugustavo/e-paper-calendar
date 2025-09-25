@@ -104,8 +104,9 @@ class ImageRenderer:
 
         # Week day headers
         top_after_title = y + th + 2
+        pycal.setfirstweekday(pycal.SUNDAY)
         week_names = pycal.weekheader(2).split()
-        cal = pycal.Calendar(firstweekday=pycal.MONDAY)
+        cal = pycal.Calendar(firstweekday=pycal.SUNDAY)
         cell_w = width // 7
 
         header_y = top_after_title
