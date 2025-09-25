@@ -10,24 +10,25 @@ import requests
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from PIL import Image, ImageOps
+#from PIL import Image, ImageOps
 
 # Compatibilidade PILLOW
 from PIL import Image
 try:
-    # Para compatibilidade com versões antigas
-    if not hasattr(Image, 'Resampling'):
-        class Resampling:
-            LANCZOS = Image.LANCZOS
-            BILINEAR = Image.BILINEAR
-            NEAREST = Image.NEAREST
-        Image.Resampling = Resampling
+    Image.Resampling.LANCZOS
+except AttributeError:
+    class Resampling:
+        NEAREST = getattr(Image, 'NEAREST', 0)
+        LANCZOS = getattr(Image, 'LANCZOS', 1)
+        BILINEAR = getattr(Image, 'BILINEAR', 2)
+        BICUBIC = getattr(Image, 'BICUBIC', 3)
+        BOX = getattr(Image, 'BOX', 4) if hasattr(Image, 'BOX') else 4
+        HAMMING = getattr(Image, 'HAMMING', 5) if hasattr(Image, 'HAMMING') else 1
+    Image.Resampling = Resampling
     if not hasattr(Image, "Dither"):
         class Dither:
-            DITHER = Image.FLOYDSTEINBERG
+            FLOYDSTEINBERG = getattr(Image, 'FLOYDSTEINBERG', 3)
         Image.Dither = Dither
-except:
-    pass
 
 logger = logging.getLogger(__name__)
 
