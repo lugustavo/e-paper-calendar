@@ -12,6 +12,19 @@ from pathlib import Path
 from typing import Optional
 from PIL import Image, ImageOps
 
+# Compatibilidade PILLOW
+from PIL import Image
+try:
+    # Para compatibilidade com versões antigas
+    if not hasattr(Image, 'Resampling'):
+        class Resampling:
+            LANCZOS = Image.LANCZOS
+            BILINEAR = Image.BILINEAR
+            NEAREST = Image.NEAREST
+        Image.Resampling = Resampling
+except:
+    pass
+
 logger = logging.getLogger(__name__)
 
 class AIImageService:
