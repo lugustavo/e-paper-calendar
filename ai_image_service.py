@@ -22,6 +22,10 @@ try:
             BILINEAR = Image.BILINEAR
             NEAREST = Image.NEAREST
         Image.Resampling = Resampling
+    if not hasattr(Image, "Dither"):
+        class Dither:
+            DITHER = Image.FLOYDSTEINBERG
+        Image.Dither = Dither
 except:
     pass
 
