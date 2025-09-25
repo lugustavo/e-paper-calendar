@@ -58,6 +58,26 @@ class Config:
         self.AI_IMAGE_WIDTH = self._get_int('AI_IMAGE_WIDTH', 96)
         self.AI_IMAGE_HEIGHT = self._get_int('AI_IMAGE_HEIGHT', 110)
 
+        # AI Image themes (separated by comma)
+        default_themes = (
+            "uma pequena casa pixel art em preto e branco,"
+            "um gato pixel art dormindo em preto e branco,"
+            "uma árvore pixel art simples em preto e branco,"
+            "um café pixel art com vapor em preto e branco,"
+            "um livro aberto pixel art em preto e branco,"
+            "uma planta em vaso pixel art em preto e branco,"
+            "um coração pixel art simples em preto e branco,"
+            "uma estrela pixel art brilhante em preto e branco,"
+            "uma lua crescente pixel art em preto e branco,"
+            "um sol pixel art sorrindo em preto e branco,"
+            "uma nuvem fofa pixel art em preto e branco,"
+            "um pássaro voando pixel art em preto e branco,"
+            "uma flor simples pixel art em preto e branco,"
+            "um guarda-chuva pixel art em preto e branco,"
+            "uma bicicleta pixel art em preto e branco"
+        )
+        self.AI_IMAGE_THEMES = [theme.strip() for theme in self._get_str('AI_IMAGE_THEMES', default_themes).split(',') if theme.strip()]
+
         # Font paths
         self.FONT_REGULAR = self._get_str('FONT_REGULAR', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')
         self.FONT_BOLD = self._get_str('FONT_BOLD', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')

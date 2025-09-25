@@ -35,24 +35,12 @@ class AIImageService:
         """Generate a daily prompt for pixel art"""
         day_of_year = datetime.now().timetuple().tm_yday
 
-        # Lista de temas para variedade
-        themes = [
-            "uma pequena casa pixel art em preto e branco",
-            "um gato pixel art dormindo em preto e branco",
-            "uma árvore pixel art simples em preto e branco",
-            "um café pixel art com vapor em preto e branco",
-            "um livro aberto pixel art em preto e branco",
-            "uma planta em vaso pixel art em preto e branco",
-            "um coração pixel art simples em preto e branco",
-            "uma estrela pixel art brilhante em preto e branco",
-            "uma lua crescente pixel art em preto e branco",
-            "um sol pixel art sorrindo em preto e branco",
-            "uma nuvem fofa pixel art em preto e branco",
-            "um pássaro voando pixel art em preto e branco",
-            "uma flor simples pixel art em preto e branco",
-            "um guarda-chuva pixel art em preto e branco",
-            "uma bicicleta pixel art em preto e branco"
-        ]
+        # Get themes from config
+        themes = self.config.AI_IMAGE_THEMES
+
+        if not themes:
+            # Fallback if no themes configured
+            themes = ["uma imagem pixel art simples em preto e branco"]
 
         # Seleciona tema baseado no dia do ano para consistência diária
         theme = themes[day_of_year % len(themes)]

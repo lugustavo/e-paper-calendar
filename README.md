@@ -139,6 +139,9 @@ AI_IMAGE_CACHE_DAYS=7
 # Dimensões das imagens (ajustado para o frame)
 AI_IMAGE_WIDTH=96
 AI_IMAGE_HEIGHT=110
+
+# Temas personalizáveis (separados por vírgula)
+AI_IMAGE_THEMES=um gato pixel art,uma casa pixel art,uma árvore pixel art
 ```
 
 ## Uso
@@ -218,8 +221,10 @@ journalctl -u e-paper-calendar -f
 
 ### Imagens AI
 
-- **Temas**: Modifique a lista `themes` em `ai_image_service.py`
-- **Prompts**: Ajuste `_generate_daily_prompt()` para diferentes estilos
+- **Temas**: Configure os temas no arquivo `.env` na variável `AI_IMAGE_THEMES`
+- **Formato**: Separe os temas por vírgula
+- **Exemplo**: `AI_IMAGE_THEMES=um gato pixel art,uma casa pixel art,uma árvore pixel art`
+- **Prompts**: Cada tema é automaticamente processado com "8-bit", "muito simples", "minimalista", "fundo branco limpo"
 - **Cache**: Configure `AI_IMAGE_CACHE_DAYS` para retenção
 - **Fallback**: Sistema automaticamente volta para "Dia livre" se API falhar
 
