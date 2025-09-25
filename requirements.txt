@@ -15,6 +15,9 @@ python-dotenv==0.21.1
 # Timezone handling
 tzlocal==5.1
 
+# HTTP requests for AI image generation
+requests==2.31.0
+
 # Waveshare e-paper display library
 # Note: This should be installed separately following Waveshare's instructions
 # https://github.com/waveshare/e-Paper/tree/master/RaspberryPi_JetsonNano/python

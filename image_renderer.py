@@ -3,6 +3,7 @@ Image rendering for e-paper display
 """
 
 import os
+import io
 import time
 import logging
 import calendar as pycal
@@ -48,6 +49,15 @@ class ImageRenderer:
     def __init__(self, config):
         self.config = config
         self.font_manager = FontManager(config)
+
+        # Initialize AI image service if enabled
+        self._ai_service = None
+        if config.AI_IMAGES_ENABLED:
+            try:
+                from ai_image_service import AIImageService
+                self._ai_service = AIImageService(config)
+            except Exception as e:
+                logger.warning(f"Falha ao inicializar AI Image Service: {e}")
 
     def _text_size(self, draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont) -> Tuple[int, int]:
         """Get text size, compatible with Pillow 10+"""
@@ -104,7 +114,7 @@ class ImageRenderer:
 
         # Week day headers
         top_after_title = y + th + 2
-        pycal.setfirstweekday(pycal.SUNDAY)
+        pycal.setfirstweekday(6)
         week_names = pycal.weekheader(2).split()
         cal = pycal.Calendar(firstweekday=pycal.SUNDAY)
         cell_w = width // 7
@@ -159,7 +169,37 @@ class ImageRenderer:
         tw, _ = self._text_size(draw, time_text, time_font)
         draw.text((x + (width - tw)//2, y + 2), time_text, font=time_font, fill=255)
 
-    def _draw_events(self, draw: ImageDraw.ImageDraw, x: int, y: int,
+    def _draw_ai_image(self, draw: ImageDraw.ImageDraw, img: Image.Image, x: int, y: int,
+                      width: int, height: int):
+        """Draw AI generated image in the events area"""
+        if not self._ai_service:
+            return False
+
+        try:
+            # Get AI image (cached daily)
+            ai_image = self._ai_service.get_daily_image((width - 4, height - 30))
+
+            if ai_image:
+                # Paste AI image onto main image
+                paste_x = x + 2
+                paste_y = y + 25  # Leave space for title
+                img.paste(ai_image, (paste_x, paste_y))
+
+                # Add a simple title
+                title_font = self.font_manager.get_font('bold', self.config.FONT_SIZE_SUBTITLE)
+                title = "Arte do Dia"
+                tw, _ = self._text_size(draw, title, title_font)
+                draw.text((x + (width - tw)//2, y + 5), title, font=title_font, fill=0)
+
+                logger.info("Imagem AI exibida com sucesso")
+                return True
+
+        except Exception as e:
+            logger.error(f"Erro ao exibir imagem AI: {e}")
+
+        return False
+
+    def _draw_events(self, draw: ImageDraw.ImageDraw, img: Image.Image, x: int, y: int,
                     width: int, height: int, items: List[Tuple[str, str, str, str]],
                     page_index: int = 0, total_pages: int = 1):
         """Draw events and tasks list"""
@@ -182,9 +222,13 @@ class ImageRenderer:
 
         current_y = y + title_font.size + 8
 
-        # No events message
+        # No events - try to show AI image
         if not items:
-            # "Dia livre" message
+            # Try to draw AI generated image
+            if self.config.AI_IMAGES_ENABLED and self._draw_ai_image(draw, img, x, current_y, width, height - (current_y - y)):
+                return
+
+            # Fallback to original "Dia livre" message
             no_events_font = self.font_manager.get_font('regular', self.config.FONT_SIZE_NO_EVENTS)
             msg = self.config.MSG_FREE_DAY
             mw, _ = self._text_size(draw, msg, no_events_font)
@@ -292,7 +336,7 @@ class ImageRenderer:
 
         # Clear and draw events area
         draw.rectangle([left_x + 1, left_y + 1, left_x + left_w - 1, left_y + left_h - 1], fill=255)
-        self._draw_events(draw, left_x + 2, left_y + 2, left_w - 4, left_h - 6,
+        self._draw_events(draw, img, left_x + 2, left_y + 2, left_w - 4, left_h - 6,
                          show_items, page_index=page_index, total_pages=total_pages)
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000

@@ -9,10 +9,20 @@ Sistema de exibição de calendário e tarefas do Google em display e-paper Wave
 - **Display e-paper**: Waveshare 2.13" V2 (250x122 pixels)
 - **Integração Google**: Calendar e Tasks API
 - **Layout otimizado**: Eventos à esquerda, calendário e hora à direita
+- **🎨 NOVO: Imagens AI**: Pixel art gerada por IA em dias sem eventos
 - **Atualizações inteligentes**: Renderização completa inicial, atualizações parciais periódicas
 - **Paginação**: Eventos exibidos em grupos de 3, com rotação automática
 - **Autenticação flexível**: Suporte para ambiente GUI e headless
 - **Configuração**: Arquivo `.env` para fácil customização
+
+## Nova Funcionalidade: Imagens AI
+
+Quando não há eventos para o dia atual, o sistema pode gerar automaticamente uma imagem pixel art usando a API do OpenAI DALL-E. As imagens são:
+
+- **Otimizadas para e-paper**: Preto e branco, baixa resolução (96x110 pixels)
+- **Tema diário**: Diferentes temas rotativos (casa, gato, árvore, café, etc.)
+- **Cache inteligente**: Uma imagem por dia, armazenada localmente
+- **Fallback gracioso**: Se a API falhar, exibe a mensagem tradicional "Dia livre"
 
 ## Estrutura do Projeto
 
@@ -22,6 +32,7 @@ Sistema de exibição de calendário e tarefas do Google em display e-paper Wave
 ├── google_service.py      # Integração com Google APIs
 ├── image_renderer.py      # Renderização de imagens
 ├── display_controller.py  # Controle do display e-paper
+├── ai_image_service.py    # 🆕 Geração de imagens AI
 ├── logger_setup.py        # Configuração de logging
 ├── .env                   # Arquivo de configuração
 ├── requirements.txt       # Dependências Python
@@ -82,11 +93,24 @@ pip install -r requirements.txt
 5. Baixe o arquivo JSON e renomeie para `credentials_raspberry-pi.json`
 6. Coloque o arquivo na raiz do projeto
 
+### 5. 🆕 Configuração OpenAI (Opcional)
+
+Para habilitar as imagens AI:
+
+1. Crie uma conta em [OpenAI Platform](https://platform.openai.com)
+2. Gere uma API key em [API Keys](https://platform.openai.com/api-keys)
+3. Adicione a chave no arquivo `.env`:
+   ```bash
+   OPENAI_API_KEY=your_openai_api_key_here
+   ```
+
+**Custos**: DALL-E 3 custa ~$0.040 por imagem. Com cache diário, são ~$1.20/mês.
+
 ## Configuração
 
 ### Arquivo `.env`
 
-Copie o arquivo `.env` fornecido e ajuste conforme necessário:
+Copie o arquivo `.env.example` e ajuste conforme necessário:
 
 ```bash
 cp .env.example .env
@@ -97,9 +121,25 @@ nano .env
 
 - **Display**: Dimensões, rotação, intervalos de atualização
 - **Eventos**: Número máximo, itens por página
+- **🆕 AI Images**: Habilitação, cache, dimensões
+- **🆕 OpenAI**: Chave da API
 - **Fontes**: Caminhos e tamanhos
 - **Google API**: Arquivos de credenciais, porta OAuth
 - **Logging**: Diretório, retenção, nível
+
+### Configurações de Imagens AI:
+
+```bash
+# Habilitar/desabilitar imagens AI
+AI_IMAGES_ENABLED=true
+
+# Dias de cache das imagens
+AI_IMAGE_CACHE_DAYS=7
+
+# Dimensões das imagens (ajustado para o frame)
+AI_IMAGE_WIDTH=96
+AI_IMAGE_HEIGHT=110
+```
 
 ## Uso
 
@@ -176,6 +216,13 @@ journalctl -u e-paper-calendar -f
 - Ajuste dimensões dos painéis em `.env`
 - Personalize mensagens e emojis
 
+### Imagens AI
+
+- **Temas**: Modifique a lista `themes` em `ai_image_service.py`
+- **Prompts**: Ajuste `_generate_daily_prompt()` para diferentes estilos
+- **Cache**: Configure `AI_IMAGE_CACHE_DAYS` para retenção
+- **Fallback**: Sistema automaticamente volta para "Dia livre" se API falhar
+
 ### Fontes
 
 - Configure caminhos das fontes em `.env`
@@ -207,6 +254,12 @@ journalctl -u e-paper-calendar -f
 - Recriar token: `rm token.json`
 - Confirmar APIs habilitadas no Google Console
 
+### 🆕 Problemas com imagens AI
+- **API Key inválida**: Verificar `OPENAI_API_KEY` no `.env`
+- **Quota excedida**: Verificar limites de billing na OpenAI
+- **Cache corrompido**: Limpar pasta `image_cache/`
+- **Sem internet**: Sistema volta automaticamente para "Dia livre"
+
 ### Problemas de fonte
 - Verificar caminhos das fontes em `.env`
 - Instalar fontes DejaVu se necessário: `sudo apt install fonts-dejavu`
@@ -214,6 +267,20 @@ journalctl -u e-paper-calendar -f
 ### Erro de importação
 - Confirmar ambiente virtual ativo
 - Reinstalar dependências: `pip install -r requirements.txt`
+
+## Gerenciamento de Cache
+
+O sistema mantém um cache local das imagens geradas:
+
+```bash
+# Limpar cache manualmente
+rm -rf image_cache/
+
+# Verificar tamanho do cache
+du -sh image_cache/
+```
+
+O cache é limpo automaticamente após o número de dias configurado em `AI_IMAGE_CACHE_DAYS`.
 
 ## Contribuição
 
@@ -231,4 +298,5 @@ MIT License - veja arquivo LICENSE para detalhes.
 
 - [Waveshare](https://www.waveshare.com/) - Hardware e biblioteca e-paper
 - [Google APIs](https://developers.google.com/) - Calendar e Tasks integration
+- [OpenAI](https://openai.com/) - DALL-E API para geração de imagens
 - Projeto baseado no código original de calendário e-paper

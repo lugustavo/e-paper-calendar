@@ -52,6 +52,12 @@ class Config:
         self.MAX_EVENTS = self._get_int('MAX_EVENTS', 12)
         self.EVENTS_PER_PAGE = self._get_int('EVENTS_PER_PAGE', 3)
 
+        # AI Image settings
+        self.AI_IMAGES_ENABLED = self._get_bool('AI_IMAGES_ENABLED', True)
+        self.AI_IMAGE_CACHE_DAYS = self._get_int('AI_IMAGE_CACHE_DAYS', 7)
+        self.AI_IMAGE_WIDTH = self._get_int('AI_IMAGE_WIDTH', 96)
+        self.AI_IMAGE_HEIGHT = self._get_int('AI_IMAGE_HEIGHT', 110)
+
         # Font paths
         self.FONT_REGULAR = self._get_str('FONT_REGULAR', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')
         self.FONT_BOLD = self._get_str('FONT_BOLD', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')
