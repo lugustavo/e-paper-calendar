@@ -183,17 +183,23 @@ Crie `/etc/systemd/system/e-paper-calendar.service`:
 
 ```ini
 [Unit]
-Description=E-Paper Calendar Display
+Description=E-paper Calendar (Waveshare 2.13)
 After=network.target
+# Só inicia se o SPI estiver presente e se já existir o token de login
+ConditionPathExists=/dev/spidev0.0
+ConditionPathExists=/home/pi/token.json
 
 [Service]
 Type=simple
 User=pi
+Group=pi
 WorkingDirectory=/home/pi/e-paper-calendar
 Environment=PATH=/home/pi/e-paper-calendar/venv/bin
 ExecStart=/home/pi/e-paper-calendar/venv/bin/python main.py
 Restart=always
 RestartSec=30
+# Dá um tempinho pro SPI/udev em boots mais lentos (ajuste se necessário)
+ExecStartPre=/bin/sleep 3
 
 [Install]
 WantedBy=multi-user.target
