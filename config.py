@@ -32,6 +32,9 @@ class Config:
         env_path = Path(__file__).parent / '.env'
         load_dotenv(env_path)
 
+        # Version info
+        self.VERSION = self._get_str('VERSION', 'v1.0.1')
+
         # Base directory
         self.BASE_DIR = Path(__file__).parent
 

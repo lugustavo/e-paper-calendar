@@ -202,10 +202,11 @@ class ImageRenderer:
     def _draw_events(self, draw: ImageDraw.ImageDraw, img: Image.Image, x: int, y: int,
                     width: int, height: int, items: List[Tuple[str, str, str, str]],
                     page_index: int = 0, total_pages: int = 1):
-        """Draw events and tasks list"""
+        """Draw events and tasks list with version footer"""
         title_font = self.font_manager.get_font('bold', self.config.FONT_SIZE_SUBTITLE)
         item_font = self.font_manager.get_font('regular', self.config.FONT_SIZE_REGULAR)
         small_font = self.font_manager.get_font('regular', self.config.FONT_SIZE_SMALL)
+        version_font = self.font_manager.get_font('regular', 6)  # Fonte bem pequena para versão
 
         # Title bar
         if not items:
@@ -222,53 +223,68 @@ class ImageRenderer:
 
         current_y = y + title_font.size + 8
 
+        # Calcular espaço disponível para eventos (reservando espaço para rodapé da versão)
+        version_footer_height = 10  # Altura reservada para o rodapé da versão
+        available_height = height - (current_y - y) - version_footer_height
+
         # No events - try to show AI image
         if not items:
             # Try to draw AI generated image
-            if self.config.AI_IMAGES_ENABLED and self._draw_ai_image(draw, img, x, current_y, width, height - (current_y - y)):
-                return
-
-            # Fallback to original "Dia livre" message
-            no_events_font = self.font_manager.get_font('regular', self.config.FONT_SIZE_NO_EVENTS)
-            msg = self.config.MSG_FREE_DAY
-            mw, _ = self._text_size(draw, msg, no_events_font)
-            draw.text((x + (width - mw)//2 - 18, current_y + 10), msg, font=no_events_font, fill=0)
-
-            # Happy emoji
-            try:
-                emoji_font = self.font_manager.get_font('regular', self.config.FONT_SIZE_EMOJI)
-                emoji = self.config.MSG_EMOJI_HAPPY
-                ew, _ = self._text_size(draw, emoji, emoji_font)
-                draw.text((x + (width - ew)//2 - 10, current_y + 35), emoji, font=emoji_font, fill=0)
-            except Exception:
-                # Fallback if emoji doesn't render
+            if self.config.AI_IMAGES_ENABLED and self._draw_ai_image(draw, img, x, current_y, width, available_height):
+                # AI image was drawn successfully, still draw version footer
                 pass
-
-            return
-
-        # Draw events
-        for time_str, title, source, location in items:
-            # Event line
-            line1 = f"{time_str} {title}"
-            truncated_line1 = self._truncate_text(draw, line1, width, item_font)
-            draw.text((x, current_y), truncated_line1, font=item_font, fill=0)
-            current_y += item_font.size + 1
-
-            # Location if present
-            if location:
-                truncated_location = self._truncate_text(draw, location, width - 6, small_font)
-                draw.text((x + 6, current_y), truncated_location, font=small_font, fill=0)
-                current_y += small_font.size + self.config.LINE_SPACING
             else:
-                current_y += self.config.LINE_SPACING
+                # Fallback to original "Dia livre" message
+                no_events_font = self.font_manager.get_font('regular', self.config.FONT_SIZE_NO_EVENTS)
+                msg = self.config.MSG_FREE_DAY
+                mw, _ = self._text_size(draw, msg, no_events_font)
+                draw.text((x + (width - mw)//2 - 18, current_y + 10), msg, font=no_events_font, fill=0)
 
-            # Separator line
-            draw.line([x, current_y, x + width, current_y], fill=0)
-            current_y += 2
+                # Happy emoji
+                try:
+                    emoji_font = self.font_manager.get_font('regular', self.config.FONT_SIZE_EMOJI)
+                    emoji = self.config.MSG_EMOJI_HAPPY
+                    ew, _ = self._text_size(draw, emoji, emoji_font)
+                    draw.text((x + (width - ew)//2 - 10, current_y + 35), emoji, font=emoji_font, fill=0)
+                except Exception:
+                    # Fallback if emoji doesn't render
+                    pass
 
-            # Stop if we run out of space
-            if current_y > y + height - item_font.size:
-                break
+        else:
+            # Draw events (com altura limitada)
+            for time_str, title, source, location in items:
+                # Verificar se ainda há espaço para mais eventos
+                if current_y > y + available_height - item_font.size - 10:
+                    break
+
+                # Event line
+                line1 = f"{time_str} {title}"
+                truncated_line1 = self._truncate_text(draw, line1, width, item_font)
+                draw.text((x, current_y), truncated_line1, font=item_font, fill=0)
+                current_y += item_font.size + 1
+
+                # Location if present
+                if location:
+                    truncated_location = self._truncate_text(draw, location, width - 6, small_font)
+                    draw.text((x + 6, current_y), truncated_location, font=small_font, fill=0)
+                    current_y += small_font.size + self.config.LINE_SPACING
+                else:
+                    current_y += self.config.LINE_SPACING
+
+                # Separator line
+                draw.line([x, current_y, x + width, current_y], fill=0)
+                current_y += 2
+
+        # NOVO: Desenhar rodapé com versão
+        version_text = self.config.VERSION
+        vw, vh = self._text_size(draw, version_text, version_font)
+
+        # Posição do rodapé (canto inferior direito do frame)
+        version_x = x + width - vw - 2  # 2 pixels de margem da direita
+        version_y = y + height - vh - 1  # 1 pixel de margem de baixo
+
+        # Desenhar versão em cinza claro (simulado com pontilhado)
+        draw.text((version_x, version_y), version_text, font=version_font, fill=0)
 
     def render_static(self) -> Image.Image:
         """Render static elements (calendar grid)"""
