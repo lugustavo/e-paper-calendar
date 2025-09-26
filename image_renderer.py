@@ -280,8 +280,8 @@ class ImageRenderer:
         vw, vh = self._text_size(draw, version_text, version_font)
 
         # Posição do rodapé (canto inferior direito do frame)
-        version_x = x + width - vw - 2  # 2 pixels de margem da direita
-        version_y = y + height - vh - 1  # 1 pixel de margem de baixo
+        version_x = x + width - vw #- 2  # 2 pixels de margem da direita
+        version_y = y + height - vh #- 1  # 1 pixel de margem de baixo
 
         # Desenhar versão em cinza claro (simulado com pontilhado)
         draw.text((version_x, version_y), version_text, font=version_font, fill=0)
