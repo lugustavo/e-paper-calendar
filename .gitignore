@@ -4,6 +4,6 @@ token.json
 credentials.json
 credentials_work-laptop.json
 token.pickle
-logs/epaper.log
+logs
 __pycache__
 image_cache
