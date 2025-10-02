@@ -31,7 +31,7 @@ class DisplayController:
             self._initialized = True
             
         except ImportError:
-            logger.error("Waveshare EPD library não encontrada")
+            logger.error("Waveshare EPD library nï¿½o encontrada")
             raise
         except Exception as e:
             logger.error(f"Falha ao inicializar display: {e}")
@@ -50,7 +50,7 @@ class DisplayController:
             self._initialize_display()
             
             if self._epd is None:
-                raise RuntimeError("Display não inicializado")
+                raise RuntimeError("Display nï¿½o inicializado")
 
             # Rotate image if configured
             if self.config.ROTATE_DISPLAY:
@@ -74,7 +74,7 @@ class DisplayController:
 
         except Exception as e:
             logger.error(f"Erro ao atualizar display: {e}")
-            # Em caso de erro, tenta reinicializar na próxima vez
+            # Em caso de erro, tenta reinicializar na prï¿½xima vez
             self._initialized = False
             raise
 
@@ -84,7 +84,7 @@ class DisplayController:
             self._initialize_display()
             
             if self._epd is None:
-                raise RuntimeError("Display não inicializado")
+                raise RuntimeError("Display nï¿½o inicializado")
                 
             self._epd.init(self._epd.FULL_UPDATE)
             self._epd.Clear(0xFF)
@@ -113,7 +113,7 @@ class DisplayController:
                     self._epd.module_exit()
                 except:
                     pass
-                logger.info("Display cleanup concluído")
+                logger.info("Display cleanup concluï¿½do")
         except Exception as e:
             logger.warning(f"Erro no cleanup: {e}")
         finally:

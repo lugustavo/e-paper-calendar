@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Script para verificar recursos do sistema e file descriptors
-Útil para diagnosticar vazamentos de recursos
+ï¿½til para diagnosticar vazamentos de recursos
 """
 
 import os
@@ -24,7 +24,7 @@ def check_file_descriptors():
         print(f"FILE DESCRIPTORS - PID {pid}")
         print(f"{'='*60}")
         print(f"Arquivos abertos: {len(open_files)}")
-        print(f"Conexões de rede: {len(connections)}")
+        print(f"Conexï¿½es de rede: {len(connections)}")
         print(f"Total FDs: {process.num_fds()}")
         
         # Limites do sistema
@@ -46,13 +46,13 @@ def check_file_descriptors():
         # Verifica dispositivos SPI
         spi_devices = [f for f in open_files if 'spi' in f.path.lower()]
         if spi_devices:
-            print(f"\n??  ATENÇÃO: {len(spi_devices)} dispositivos SPI abertos:")
+            print(f"\n??  ATENï¿½ï¿½O: {len(spi_devices)} dispositivos SPI abertos:")
             for f in spi_devices:
                 print(f"  - {f.path} (fd={f.fd})")
         
-        # Memória
+        # Memï¿½ria
         mem_info = process.memory_info()
-        print(f"\nMemória:")
+        print(f"\nMemï¿½ria:")
         print(f"  RSS: {mem_info.rss / 1024 / 1024:.1f} MB")
         print(f"  VMS: {mem_info.vms / 1024 / 1024:.1f} MB")
         
@@ -75,20 +75,20 @@ def check_system_resources():
     cpu_percent = psutil.cpu_percent(interval=1)
     print(f"CPU: {cpu_percent}%")
     
-    # Memória
+    # Memï¿½ria
     mem = psutil.virtual_memory()
-    print(f"Memória: {mem.percent}% usado ({mem.used/1024/1024:.0f}/{mem.total/1024/1024:.0f} MB)")
+    print(f"Memï¿½ria: {mem.percent}% usado ({mem.used/1024/1024:.0f}/{mem.total/1024/1024:.0f} MB)")
     
     # Disco
     disk = psutil.disk_usage('/')
     print(f"Disco /: {disk.percent}% usado ({disk.used/1024/1024/1024:.1f}/{disk.total/1024/1024/1024:.1f} GB)")
     
-    # Temperature (Raspberry Pi específico)
+    # Temperature (Raspberry Pi especï¿½fico)
     try:
         temp_path = Path('/sys/class/thermal/thermal_zone0/temp')
         if temp_path.exists():
             temp = int(temp_path.read_text()) / 1000
-            print(f"Temperatura: {temp:.1f}°C")
+            print(f"Temperatura: {temp:.1f}ï¿½C")
     except:
         pass
 
@@ -149,12 +149,12 @@ def main():
             if pid:
                 print(f"Encontrado processo e-paper: PID {pid}")
             else:
-                print("Processo e-paper não encontrado, monitorando processo atual")
+                print("Processo e-paper nï¿½o encontrado, monitorando processo atual")
                 pid = os.getpid()
         
         monitor_process(pid, args.interval)
     else:
-        # Verificação única
+        # Verificaï¿½ï¿½o ï¿½nica
         check_system_resources()
         check_file_descriptors()
         
@@ -167,7 +167,7 @@ def main():
             try:
                 proc = psutil.Process(epaper_pid)
                 print(f"FDs abertos: {proc.num_fds()}")
-                print(f"Memória: {proc.memory_info().rss / 1024 / 1024:.1f} MB")
+                print(f"Memï¿½ria: {proc.memory_info().rss / 1024 / 1024:.1f} MB")
                 print(f"CPU: {proc.cpu_percent()}%")
                 print(f"\nUse --monitor --pid {epaper_pid} para monitorar continuamente")
             except Exception as e:
