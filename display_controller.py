@@ -15,6 +15,10 @@ class DisplayController:
         self.config = config
         self._epd = None
         self._initialized = False
+        
+        # Inicializa display apenas uma vez
+        self._initialize_display()
+
 
     def _initialize_display(self):
         """Initialize display hardware (chamado apenas uma vez)"""
@@ -31,7 +35,7 @@ class DisplayController:
             self._initialized = True
             
         except ImportError:
-            logger.error("Waveshare EPD library n�o encontrada")
+            logger.error("Waveshare EPD library não encontrada")
             raise
         except Exception as e:
             logger.error(f"Falha ao inicializar display: {e}")
@@ -46,11 +50,9 @@ class DisplayController:
             full_update: Whether to use full refresh (True) or partial (False)
         """
         try:
-            # Inicializa display apenas uma vez
-            self._initialize_display()
             
             if self._epd is None:
-                raise RuntimeError("Display n�o inicializado")
+                raise RuntimeError("Display não inicializado")
 
             # Rotate image if configured
             if self.config.ROTATE_DISPLAY:
@@ -74,17 +76,15 @@ class DisplayController:
 
         except Exception as e:
             logger.error(f"Erro ao atualizar display: {e}")
-            # Em caso de erro, tenta reinicializar na pr�xima vez
+            # Em caso de erro, tenta reinicializar na próxima vez
             self._initialized = False
             raise
 
     def clear_display(self):
         """Clear the display to white"""
         try:
-            self._initialize_display()
-            
             if self._epd is None:
-                raise RuntimeError("Display n�o inicializado")
+                raise RuntimeError("Display não inicializado")
                 
             self._epd.init(self._epd.FULL_UPDATE)
             self._epd.Clear(0xFF)
@@ -113,7 +113,7 @@ class DisplayController:
                     self._epd.module_exit()
                 except:
                     pass
-                logger.info("Display cleanup conclu�do")
+                logger.info("Display cleanup concluído")
         except Exception as e:
             logger.warning(f"Erro no cleanup: {e}")
         finally:

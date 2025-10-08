@@ -4,7 +4,7 @@
 Raspberry Pi Zero W + Waveshare e-Paper 2.13'' (V2 250x122)
 E-Paper Calendar Display com Google Calendar e Tasks integration
 
-Vers�o corrigida - previne vazamento de file descriptors
+Versão corrigida - previne vazamento de file descriptors
 """
 
 import argparse
@@ -18,7 +18,7 @@ from google_service import GoogleService
 from image_renderer import ImageRenderer
 from logger_setup import setup_logging
 
-# Vari�veis globais para cleanup
+# Variáveis globais para cleanup
 display = None
 logger = None
 
@@ -59,7 +59,6 @@ def main():
         config = Config()
         google_service = GoogleService(config)
         renderer = ImageRenderer(config)
-        display = DisplayController(config)
 
         logger.info("Sistema iniciado com sucesso")
 
@@ -74,6 +73,8 @@ def main():
             return 0
 
         # Display initial image
+        display = DisplayController(config)
+        
         display.show_image(base_img, full_update=True)
 
         # Main loop
@@ -87,7 +88,7 @@ def main():
 
                 # Check for day change
                 if now.date() != today:
-                    logger.info("Mudan�a de dia detectada, regenerando parte est�tica")
+                    logger.info("Mudança de dia detectada, regenerando parte estática")
                     base_img = renderer.render_static()
                     display.show_image(base_img, full_update=True)
                     today = now.date()
@@ -97,7 +98,7 @@ def main():
                 img = renderer.render_dynamic(base_img, google_service, page_index)
                 display.show_image(img, full_update=False)
 
-                logger.info(f"Atualiza��o parcial OK (p�gina {page_index + 1})")
+                logger.info(f"Atualização parcial OK (página {page_index + 1})")
                 page_index += 1
                 
                 # Reset error counter on success
@@ -106,12 +107,12 @@ def main():
                 time.sleep(config.UPDATE_INTERVAL)
 
             except KeyboardInterrupt:
-                logger.info("Encerrado pelo usu�rio (Ctrl+C)")
+                logger.info("Encerrado pelo usuário (Ctrl+C)")
                 break
                 
             except Exception as e:
                 error_count += 1
-                logger.exception(f"Erro no loop de atualiza��o ({error_count}/{max_errors}): {e}")
+                logger.exception(f"Erro no loop de atualização ({error_count}/{max_errors}): {e}")
                 
                 # Se muitos erros consecutivos, tenta reinicializar display
                 if error_count >= max_errors:
@@ -128,7 +129,7 @@ def main():
                 time.sleep(config.UPDATE_INTERVAL)
 
     except Exception as e:
-        logger.exception(f"Erro cr�tico na inicializa��o: {e}")
+        logger.exception(f"Erro crético na inicialização: {e}")
         return 1
     
     finally:
